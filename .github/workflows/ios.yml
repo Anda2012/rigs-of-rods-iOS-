@@ -1,0 +1,31 @@
+name: iOS build (experimental)
+# UNTESTED scaffold: builds the iOS port on a GitHub macOS runner so no local Mac is required.
+# Expect the dependency step to fail at first - see PORTING_IOS.md for what has to be fixed.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ios-port]
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - name: Install tooling
+        run: |
+          pip3 install --break-system-packages conan cmake ninja || pip3 install conan cmake ninja
+          conan profile detect --force
+      - name: Build dependencies (iOS arm64)
+        run: conan install . -pr:h=tools/ios/ios-arm64.profile -pr:b=default --build=missing -of build-ios
+      - name: Configure
+        run: |
+          cmake -S . -B build-ios -G Xcode \
+            -DCMAKE_TOOLCHAIN_FILE=build-ios/generators/conan_toolchain.cmake \
+            -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 -DROR_USE_PCH=OFF
+      - name: Build
+        run: cmake --build build-ios --config Release -- -sdk iphoneos CODE_SIGNING_ALLOWED=NO
+      - name: Package IPA
+        run: tools/ios/make_ipa.sh "$(find build-ios -name RoR.app -type d | head -1)" RigsOfRods-iOS.ipa
+      - uses: actions/upload-artifact@v4
+        with: { name: RigsOfRods-iOS-ipa, path: RigsOfRods-iOS.ipa }

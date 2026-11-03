@@ -348,6 +348,22 @@ endif ()
 set(BINNAME "RoR")
 add_executable(${BINNAME} ${SOURCE_FILES})
 
+if (IOS)
+    # iOS app bundle (.app) - zipped into Payload/ to make an .ipa, see tools/ios/make_ipa.sh
+    set(ROR_IOS_BUNDLE_ID "org.rigsofrods.ror" CACHE STRING "iOS bundle identifier")
+    set_target_properties(${BINNAME} PROPERTIES
+            MACOSX_BUNDLE YES
+            MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/tools/ios/Info.plist.in"
+            MACOSX_BUNDLE_BUNDLE_NAME "Rigs of Rods"
+            MACOSX_BUNDLE_GUI_IDENTIFIER "${ROR_IOS_BUNDLE_ID}"
+            MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+            MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+            XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
+            XCODE_ATTRIBUTE_ENABLE_BITCODE NO
+            XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED NO
+            XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED NO)
+endif ()
+
 if (WIN32)
     set_target_properties(${BINNAME} PROPERTIES WIN32_EXECUTABLE YES)
     # disable some annoying VS warnings:
@@ -377,10 +393,12 @@ endif ()
 #  PREPROCESSOR DEFINITIONS
 ####################################################################################################
 
-target_compile_definitions(${BINNAME} PRIVATE
-        USE_MUMBLE  # build with support for Mumble positional audio, has no dependencies but requires linking against librt on UNIX
-        #FEAT_DEBUG_MUTEX
-        )
+if (NOT IOS) # Mumble positional audio needs POSIX shared memory + librt, not available/meaningful on iOS
+    target_compile_definitions(${BINNAME} PRIVATE
+            USE_MUMBLE  # build with support for Mumble positional audio, has no dependencies but requires linking against librt on UNIX
+            #FEAT_DEBUG_MUTEX
+            )
+endif ()
 
 if (ROR_FEAT_TIMING)
     target_compile_definitions(${BINNAME} PRIVATE FEAT_TIMING)
@@ -468,6 +486,13 @@ target_include_directories(${BINNAME} PRIVATE
 
 if (WIN32)
     set(OS_LIBS "Ws2_32")
+elseif (IOS)
+    # No X11/librt on iOS - link Apple frameworks instead
+    set(OS_LIBS "")
+    foreach (fw UIKit Foundation QuartzCore CoreGraphics OpenGLES Metal AudioToolbox AVFoundation GameController CoreMotion CoreFoundation Security)
+        target_link_libraries(${BINNAME} PRIVATE "-framework ${fw}")
+    endforeach ()
+    target_link_libraries(${BINNAME} PRIVATE ${CMAKE_DL_LIBS})
 else ()
     #  include_directories(${GTK_INCLUDE_DIRS})
     set(OS_LIBS "X11 -l${CMAKE_DL_LIBS} -lrt")
@@ -543,6 +568,11 @@ if (NOT WIN32)
     set(CFG_COMMENT_RENDERSYSTEM_D3D9 "# ")
 endif ()
 
+if (IOS)
+    # plugins.cfg is not used on iOS (static plugins, see AppContext::SetUpRendering) but keep the generated file valid
+    set(CFG_COMMENT_RENDERSYSTEM_GL "# ")
+endif ()
+
 if (WIN32)
     set(CFG_COMMENT_RENDERSYSTEM_GL "# ")
 endif ()
@@ -582,6 +612,14 @@ endif ()
 fast_copy("${CMAKE_SOURCE_DIR}/resources/managed_materials" "${RUNTIME_OUTPUT_DIRECTORY}/resources/managed_materials")
 fast_copy("${CMAKE_SOURCE_DIR}/resources/fonts" "${RUNTIME_OUTPUT_DIRECTORY}/languages")
 fast_copy("${CMAKE_SOURCE_DIR}/languages" "${RUNTIME_OUTPUT_DIRECTORY}/languages")
+
+# iOS: place game resources inside the .app bundle (read-only data; user content lives in the app's Documents folder)
+if (IOS)
+    add_custom_command(TARGET ${BINNAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${RUNTIME_OUTPUT_DIRECTORY}/resources" "$<TARGET_BUNDLE_DIR:${BINNAME}>/resources"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${RUNTIME_OUTPUT_DIRECTORY}/languages" "$<TARGET_BUNDLE_DIR:${BINNAME}>/languages"
+            COMMENT "Copying resources into iOS app bundle")
+endif ()
 
 # TODO: Run fixup_bundle instead
 if (IS_DIRECTORY "${CMAKE_BINARY_DIR}/conan/bin")
@@ -639,7 +677,7 @@ if (WIN32 AND NOT ROR_BUILD_INSTALLER STREQUAL "Off")
     set(CPACK_INNOSETUP_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/ror.ico")
     set(CPACK_INNOSETUP_SETUP_WizardImageFile "${CMAKE_SOURCE_DIR}/tools/windows/RoRSetupLarge.bmp")
     set(CPACK_INNOSETUP_SETUP_WizardSmallImageFile "${CMAKE_SOURCE_DIR}/tools/windows/ror-64.bmp")
-    set(CPACK_INNOSETUP_SETUP_AppId "{{EF536888-919D-47C0-8675-2F7AFA52EE27}")
+    set(CPACK_INNOSETUP_SETUP_AppId "{{EF536888-919D-47C0-8675-2F7AFA52EE27}}")
 
     set(CPACK_PACKAGE_INSTALL_DIRECTORY "${CPACK_PACKAGE_NAME}")
 

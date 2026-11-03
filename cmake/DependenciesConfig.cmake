@@ -24,7 +24,9 @@ find_package(OpenAL)
 cmake_dependent_option(ROR_USE_OPENAL "use OPENAL" ON "OPENAL_FOUND" OFF)
 
 # --- Discord RPC -- Rich Presence for discord ---
-find_package(discord_rpc)
+if (NOT IOS)
+    find_package(discord_rpc)
+endif ()
 cmake_dependent_option(ROR_USE_DISCORD_RPC "use discord-rpc" ON "discord_rpc_FOUND" OFF)
 
 # --- SocketW - networking library ---

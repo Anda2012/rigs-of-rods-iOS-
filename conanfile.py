@@ -11,12 +11,19 @@ class RoR(ConanFile):
         "ogre3d*:profiling": "True"
     }
 
+    def configure(self):
+        # iOS port: everything static (iOS apps cannot load third-party dylibs/plugins at runtime
+        # and LiveContainer needs one self-contained executable)
+        if self.settings.os == "iOS":
+            self.options["*"].shared = False
+
     def layout(self):
         self.folders.generators = os.path.join(self.folders.build, "generators")
 
     def requirements(self):
         self.requires("angelscript/2.38.0")
-        self.requires("discord-rpc/3.4.0@anotherfoxguy/stable")
+        if self.settings.os != "iOS":  # Discord desktop client IPC is meaningless on iOS
+            self.requires("discord-rpc/3.4.0@anotherfoxguy/stable")
         self.requires("libcurl/8.2.1")
         self.requires("fmt/12.2.0")
         self.requires("mygui/3.4.0@anotherfoxguy/stable")

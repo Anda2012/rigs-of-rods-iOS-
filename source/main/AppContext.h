@@ -33,6 +33,10 @@
 #include <Ogre.h>
 #include <OIS.h>
 
+#ifdef OGRE_STATIC_LIB
+#   include <Bites/OgreStaticPluginLoader.h>
+#endif
+
 namespace RoR {
 
 /// @addtogroup Application
@@ -41,9 +45,9 @@ namespace RoR {
 /// Central setup and event handler for input/windowing/rendering.
 /// Inspired by OgreBites::ApplicationContext.
 class AppContext: public OgreBites::WindowEventListener,
-                  public OIS::MouseListener,
-                  public OIS::KeyListener,
-                  public OIS::JoyStickListener
+                   public OIS::MouseListener,
+                   public OIS::KeyListener,
+                   public OIS::JoyStickListener
 {
 public:
     // Startup (in order)
@@ -98,6 +102,9 @@ private:
     // Variables
 
     Ogre::Root*          m_ogre_root     = nullptr;
+#ifdef OGRE_STATIC_LIB
+    Ogre::StaticPluginLoader m_static_plugin_loader; // iOS port: statically linked OGRE plugins
+#endif
     Ogre::RenderWindow*  m_render_window = nullptr;
     Ogre::Viewport*      m_viewport      = nullptr;
     bool                 m_windowed_fix = false; //!< Workaround OGRE glitch when switching from fullscreen.

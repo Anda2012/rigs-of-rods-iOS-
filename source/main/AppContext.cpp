@@ -50,6 +50,10 @@
 #   include <windows.h>
 #endif
 
+#ifdef OGRE_STATIC_LIB
+#   include <Bites/OgreStaticPluginLoader.h> // registers statically linked OGRE plugins (iOS port)
+#endif
+
 #include <iomanip>
 #include <sstream>
 #include <string>
@@ -230,11 +234,17 @@ bool AppContext::SetUpRendering()
     LOG(fmt::format("[RoR|Startup|Rendering] Creating OGRE renderer Root object, config='{}'", cfg_filepath));
     m_ogre_root = new Ogre::Root("", cfg_filepath, log_filepath);
 
+#ifdef OGRE_STATIC_LIB
+    // Static OGRE build (iOS): plugins are linked into the executable and cannot be dlopen()'ed.
+    // Register them in code instead of reading plugins.cfg. (iOS port - UNTESTED, see PORTING_IOS.md)
+    LOG("[RoR|Startup|Rendering] Static OGRE build - installing built-in plugins.");
+    m_static_plugin_loader.load();
+#else
     // load OGRE plugins manually
 #ifdef _DEBUG
     std::string plugins_path = PathCombine(RoR::App::sys_process_dir->getStr(), "plugins_d.cfg");
 #else
-	std::string plugins_path = PathCombine(RoR::App::sys_process_dir->getStr(), "plugins.cfg");
+    std::string plugins_path = PathCombine(RoR::App::sys_process_dir->getStr(), "plugins.cfg");
 #endif
     LOG(fmt::format("[RoR|Startup|Rendering] Loading OGRE renderer plugins config '{}'.", plugins_path));
     try
@@ -259,6 +269,7 @@ bool AppContext::SetUpRendering()
             fmt::format(_L("Could not load file '{}' - make sure the game is installed correctly.\n\nDetailed info: {}"), plugins_path, e.getDescription()));
         return false;
     }
+#endif // static OGRE / plugins.cfg
 
     // Load renderer configuration
     bool autodetect_resolution = false;
@@ -502,7 +513,7 @@ bool AppContext::SetUpProgramPaths()
     App::sys_process_dir->setStr(RoR::GetParentDirectory(exe_path.c_str()).c_str());
 
     // RoR's home directory
-    std::string local_userdir = PathCombine(App::sys_process_dir->getStr(), "config"); // TODO: Think of a better name, this is ambiguious with ~/.rigsofrods/config which stores configfiles! ~ only_a_ptr, 02/2018
+    std::string local_userdir = PathCombine(App::sys_process_dir->getStr(), "config"); // TODO: Think of a better name, this is ambiguious with ~/.rigsofrods/config which stores configfiles! ~ on[...]
     if (FolderExists(local_userdir))
     {
         // It's a portable installation

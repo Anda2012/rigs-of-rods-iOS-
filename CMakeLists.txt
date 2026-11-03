@@ -45,7 +45,14 @@ set(ROR_FEAT_TIMING OFF)
 set(FETCHCONTENT_QUIET OFF)
 
 # global cmake options
-SET(BUILD_SHARED_LIBS ON)
+if (IOS)
+    # iOS: everything is linked statically into the app executable (no runtime plugin/dylib loading)
+    SET(BUILD_SHARED_LIBS OFF)
+    # Content is large and managed by the user, do not zip/copy the base content folder into the build
+    set(ROR_CREATE_CONTENT_FOLDER OFF CACHE BOOL "" FORCE)
+else ()
+    SET(BUILD_SHARED_LIBS ON)
+endif ()
 SET(CMAKE_USE_RELATIVE_PATHS OFF)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -89,9 +96,6 @@ if (WIN32)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}        /MP /GL /Ox /Ob2 /Oi /Ot /Oy /fp:fast /GS- /MP /Zi")
     set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL}     /MP /Zi")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /MP /Od /Zi /Gy /fp:except /GF- /GS /Ob0")
-    #if(ROR_USING_VISUAL_STUDIO_PROFESSIONAL)
-    #  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /analyze") # /analyze only available when using VS professional
-    #endif(ROR_USING_VISUAL_STUDIO_PROFESSIONAL)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}          /MP /Od /Zi /RTC1 /Gy /fp:except /GF- /GS /Ob0")
     # some general flags
     add_definitions("-D_CRT_SECURE_NO_WARNINGS")
