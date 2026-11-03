@@ -1,8 +1,15 @@
 name: iOS build (experimental)
-# The ios-shell job builds a UIKit app shell. The game-build job is an unverified port attempt
-# and can fail until engine dependencies and iOS platform integration are completed.
+# The default CI artifact is a launchable UIKit shell, not the game.
+# Full-game builds are opt-in because custom Conan recipes currently fail to resolve
+# and the game still needs substantial iOS platform integration.
 on:
   workflow_dispatch:
+    inputs:
+      attempt_full_game_build:
+        description: "Attempt the incomplete full-game iOS build (expected to fail until dependencies and porting work are fixed)"
+        required: false
+        type: boolean
+        default: false
   push:
     branches: [ios-port, ios-port-scaffold]
 jobs:
@@ -32,7 +39,8 @@ jobs:
           if-no-files-found: error
 
   game-build:
-    name: Experimental full game build (known to need porting work)
+    name: Experimental full game build (incomplete port)
+    if: github.event_name == 'workflow_dispatch' && inputs.attempt_full_game_build
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
@@ -41,7 +49,9 @@ jobs:
         run: |
           pip3 install --break-system-packages conan cmake ninja || pip3 install conan cmake ninja
           conan profile detect --force
-      - name: Build dependencies (iOS arm64)
+      - name: Add Rigs of Rods Conan dependencies remote
+        run: conan remote add rigs-of-rods-deps https://conan.cloudsmith.io/rigs-of-rods/deps/ --force
+      - name: Build dependencies (iOS arm64; currently known to require recipe fixes)
         run: conan install . -pr:h=tools/ios/ios-arm64.profile -pr:b=default --build=missing -of build-ios
       - name: Configure game
         run: |
