@@ -13,7 +13,9 @@
     UIViewController *viewController = [[UIViewController alloc] init];
     viewController.view.backgroundColor = [UIColor systemBackgroundColor];
 
-    UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
+    // Use CGRectMake rather than CGRectZero: CGRectZero may be emitted as an external
+    // symbol by the Xcode configuration and fail to link in the iOS arm64 app target.
+    UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(0.0, 0.0, 0.0, 0.0)];
     label.translatesAutoresizingMaskIntoConstraints = NO;
     label.numberOfLines = 0;
     label.textAlignment = NSTextAlignmentCenter;
