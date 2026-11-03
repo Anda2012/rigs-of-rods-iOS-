@@ -1,10 +1,10 @@
 name: iOS build (experimental)
-# UNTESTED scaffold: builds the iOS port on a GitHub macOS runner so no local Mac is required.
-# Expect the dependency step to fail at first - see PORTING_IOS.md for what has to be fixed.
+# Experimental scaffolding only: this is not yet a complete or verified iOS port.
+# Dependency recipes, renderer/window integration, input, and shaders still need iOS work.
 on:
   workflow_dispatch:
   push:
-    branches: [ios-port]
+    branches: [ios-port, ios-port-scaffold]
 jobs:
   build:
     runs-on: macos-14
