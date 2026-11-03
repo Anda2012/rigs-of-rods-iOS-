@@ -1,12 +1,38 @@
 name: iOS build (experimental)
-# Experimental scaffolding only: this is not yet a complete or verified iOS port.
-# Dependency recipes, renderer/window integration, input, and shaders still need iOS work.
+# The ios-shell job builds a UIKit app shell. The game-build job is an unverified port attempt
+# and can fail until engine dependencies and iOS platform integration are completed.
 on:
   workflow_dispatch:
   push:
     branches: [ios-port, ios-port-scaffold]
 jobs:
-  build:
+  ios-shell:
+    name: Build launchable UIKit shell
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - name: Configure shell app
+        run: >-
+          cmake -S tools/ios/shell -B build-ios-shell -G Xcode
+          -DCMAKE_SYSTEM_NAME=iOS
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0
+          -DCMAKE_OSX_ARCHITECTURES=arm64
+      - name: Build shell app
+        run: cmake --build build-ios-shell --config Release -- -sdk iphoneos CODE_SIGNING_ALLOWED=NO
+      - name: Package shell IPA
+        run: |
+          APP="$(find build-ios-shell -name 'RoR-iOS-Shell.app' -type d -print -quit)"
+          test -n "$APP"
+          tools/ios/make_ipa.sh "$APP" RigsOfRods-iOS-Shell.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RigsOfRods-iOS-shell-unsigned-ipa
+          path: RigsOfRods-iOS-Shell.ipa
+          if-no-files-found: error
+
+  game-build:
+    name: Experimental full game build (known to need porting work)
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
@@ -17,15 +43,17 @@ jobs:
           conan profile detect --force
       - name: Build dependencies (iOS arm64)
         run: conan install . -pr:h=tools/ios/ios-arm64.profile -pr:b=default --build=missing -of build-ios
-      - name: Configure
+      - name: Configure game
         run: |
           cmake -S . -B build-ios -G Xcode \
             -DCMAKE_TOOLCHAIN_FILE=build-ios/generators/conan_toolchain.cmake \
             -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
             -DCMAKE_OSX_ARCHITECTURES=arm64 -DROR_USE_PCH=OFF
-      - name: Build
+      - name: Build game
         run: cmake --build build-ios --config Release -- -sdk iphoneos CODE_SIGNING_ALLOWED=NO
-      - name: Package IPA
-        run: tools/ios/make_ipa.sh "$(find build-ios -name RoR.app -type d | head -1)" RigsOfRods-iOS.ipa
+      - name: Package game IPA
+        run: tools/ios/make_ipa.sh "$(find build-ios -name RoR.app -type d -print -quit)" RigsOfRods-iOS.ipa
       - uses: actions/upload-artifact@v4
-        with: { name: RigsOfRods-iOS-ipa, path: RigsOfRods-iOS.ipa }
+        with:
+          name: RigsOfRods-iOS-game-unsigned-ipa
+          path: RigsOfRods-iOS.ipa
